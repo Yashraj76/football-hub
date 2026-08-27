@@ -74,7 +74,7 @@ export async function renderPlayers(container, params) {
   if (loading) loading.style.display = 'none';
   if (grid) {
     grid.style.display = 'grid';
-    grid.innerHTML = getSortedPlayers(players, 'goals').map(p => createPlayerCard(p)).join('');
+    grid.innerHTML = getSortedPlayers(players, 'goals').map(p => createPlayerCard(p, teamMap[p.teamId])).join('');
   }
 
   // Search & Filter Logic
@@ -98,7 +98,7 @@ export async function renderPlayers(container, params) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => {
         const team = teamMap[p.teamId] || {};
-        return p.name.toLowerCase().includes(query) ||
+        return (p.name || '').toLowerCase().includes(query) ||
           (team.name && team.name.toLowerCase().includes(query));
       });
     }
@@ -112,7 +112,7 @@ export async function renderPlayers(container, params) {
     } else {
       grid.style.display = 'grid';
       noResults.style.display = 'none';
-      grid.innerHTML = filtered.map(p => createPlayerCard(p)).join('');
+      grid.innerHTML = filtered.map(p => createPlayerCard(p, teamMap[p.teamId])).join('');
     }
   }
 

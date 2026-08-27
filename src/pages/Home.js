@@ -24,6 +24,8 @@ export async function renderHome(container) {
     getTeams()
   ]);
 
+  const teamMap = Object.fromEntries(teams.map(t => [t.id, t]));
+
   container.innerHTML = `
     <!-- Hero Section -->
     <section class="hero">
@@ -79,7 +81,7 @@ export async function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Latest Results', 'See how the recent matches unfolded', 'All Matches', '#/matches')}
         <div class="grid-auto stagger-children">
-          ${recentMatches.map(m => createMatchCard(m)).join('')}
+          ${recentMatches.map(m => createMatchCard(m, teamMap[m.homeTeam], teamMap[m.awayTeam])).join('')}
         </div>
       </div>
     </section>
@@ -89,7 +91,7 @@ export async function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Upcoming Fixtures', "Don't miss the action", 'Full Schedule', '#/matches')}
         <div class="grid-auto stagger-children">
-          ${upcomingMatches.map(m => createMatchCard(m)).join('')}
+          ${upcomingMatches.map(m => createMatchCard(m, teamMap[m.homeTeam], teamMap[m.awayTeam])).join('')}
         </div>
       </div>
     </section>
@@ -99,7 +101,7 @@ export async function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Top Scorers', 'The sharpest shooters in the league', 'All Players', '#/players')}
         <div class="grid-auto stagger-children">
-          ${topScorers.map(p => createPlayerCard(p)).join('')}
+          ${topScorers.map(p => createPlayerCard(p, teamMap[p.teamId])).join('')}
         </div>
       </div>
     </section>
@@ -109,7 +111,7 @@ export async function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Summer Cup Standings', 'Current league positions', 'Full Table', '#/standings')}
         <div class="animate-fade-in-up">
-          ${createStandingsTable(standings)}
+          ${createStandingsTable(standings, teamMap)}
         </div>
       </div>
     </section>
@@ -125,18 +127,18 @@ export async function renderHome(container) {
                 ${createTeamLogo(t, 'lg')}
               </div>
               <div class="team-card-name">${t.name}</div>
-              <div class="team-card-meta">Est. ${t.founded} · ${t.homeGround}</div>
+              <div class="team-card-meta">Est. ${t.founded || '2020'} · ${t.homeGround || 'Stadium'}</div>
               <div class="team-card-stats">
                 <div class="player-stat-mini">
-                  <div class="player-stat-mini-value">${t.wins}</div>
+                  <div class="player-stat-mini-value">${t.wins || 0}</div>
                   <div class="player-stat-mini-label">Wins</div>
                 </div>
                 <div class="player-stat-mini">
-                  <div class="player-stat-mini-value">${t.draws}</div>
+                  <div class="player-stat-mini-value">${t.draws || 0}</div>
                   <div class="player-stat-mini-label">Draws</div>
                 </div>
                 <div class="player-stat-mini">
-                  <div class="player-stat-mini-value">${t.losses}</div>
+                  <div class="player-stat-mini-value">${t.losses || 0}</div>
                   <div class="player-stat-mini-label">Losses</div>
                 </div>
               </div>

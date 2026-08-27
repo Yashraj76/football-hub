@@ -70,7 +70,7 @@ export async function renderStandings(container) {
   const standingsContainer = container.querySelector('#standings-container');
   if (standingsContainer) {
     standingsContainer.innerHTML = initialStandings.length > 0 
-      ? createStandingsTable(initialStandings) 
+      ? createStandingsTable(initialStandings, teamMap) 
       : '<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No standings available</h3></div>';
   }
 
@@ -85,21 +85,21 @@ export async function renderStandings(container) {
         </h3>
         <div style="display:flex;flex-direction:column;gap:var(--space-1);">
           ${topScorers.map((p, i) => {
-            const team = teamMap[p.teamId] || getTeamById(p.teamId) || { name: 'Team', shortName: 'TM', gradientColor: 'linear-gradient(135deg, #333, #666)' };
+            const team = teamMap[p.teamId] || { name: 'Team', shortName: 'TM', gradientColor: 'linear-gradient(135deg, #333, #666)', emoji: '⚽' };
             return `
               <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-lg);cursor:pointer;transition:background 0.2s;" 
                    onmouseover="this.style.background='var(--bg-card-hover)'" 
                    onmouseout="this.style.background='transparent'"
                    onclick="window.location.hash='#/players/${p.id}'">
                 <span style="width:24px;font-weight:var(--weight-bold);color:${i < 3 ? 'var(--accent-green)' : 'var(--text-tertiary)'};font-size:var(--text-sm);">${i + 1}</span>
-                <div style="width:36px;height:36px;border-radius:var(--radius-full);background:${team.gradientColor};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+                <div style="width:36px;height:36px;border-radius:var(--radius-full);background:${team.gradientColor || 'linear-gradient(135deg, #333, #666)'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
                   ${p.avatar || '⚽'}
                 </div>
                 <div style="flex:1;min-width:0;">
                   <div style="font-weight:var(--weight-semibold);font-size:var(--text-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
                   <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${team.shortName || team.name}</div>
                 </div>
-                <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-extrabold);color:var(--accent-green);">${(p.stats && p.stats.goals) || 0}</div>
+                <span style="font-weight:var(--weight-extrabold);font-size:var(--text-base);color:var(--accent-green);">${p.stats.goals}</span>
               </div>
             `;
           }).join('')}
@@ -107,27 +107,27 @@ export async function renderStandings(container) {
       </div>
 
       <!-- Top Assists -->
-      <div class="card animate-fade-in-up" style="animation-delay:0.15s;">
+      <div class="card animate-fade-in-up" style="animation-delay:0.1s;">
         <h3 style="margin-bottom:var(--space-6);display:flex;align-items:center;gap:var(--space-2);">
-          🅰️ Top Assists
+          👟 Top Assists
         </h3>
         <div style="display:flex;flex-direction:column;gap:var(--space-1);">
           ${topAssists.map((p, i) => {
-            const team = teamMap[p.teamId] || getTeamById(p.teamId) || { name: 'Team', shortName: 'TM', gradientColor: 'linear-gradient(135deg, #333, #666)' };
+            const team = teamMap[p.teamId] || { name: 'Team', shortName: 'TM', gradientColor: 'linear-gradient(135deg, #333, #666)', emoji: '⚽' };
             return `
-              <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-lg);cursor:pointer;transition:background 0.2s;"
-                   onmouseover="this.style.background='var(--bg-card-hover)'"
+              <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-lg);cursor:pointer;transition:background 0.2s;" 
+                   onmouseover="this.style.background='var(--bg-card-hover)'" 
                    onmouseout="this.style.background='transparent'"
                    onclick="window.location.hash='#/players/${p.id}'">
                 <span style="width:24px;font-weight:var(--weight-bold);color:${i < 3 ? 'var(--accent-blue)' : 'var(--text-tertiary)'};font-size:var(--text-sm);">${i + 1}</span>
-                <div style="width:36px;height:36px;border-radius:var(--radius-full);background:${team.gradientColor};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+                <div style="width:36px;height:36px;border-radius:var(--radius-full);background:${team.gradientColor || 'linear-gradient(135deg, #333, #666)'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
                   ${p.avatar || '⚽'}
                 </div>
                 <div style="flex:1;min-width:0;">
                   <div style="font-weight:var(--weight-semibold);font-size:var(--text-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
                   <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${team.shortName || team.name}</div>
                 </div>
-                <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-extrabold);color:var(--accent-blue);">${(p.stats && p.stats.assists) || 0}</div>
+                <span style="font-weight:var(--weight-extrabold);font-size:var(--text-base);color:var(--accent-blue);">${p.stats.assists}</span>
               </div>
             `;
           }).join('')}
@@ -189,7 +189,7 @@ export async function renderStandings(container) {
       const filtered = await getStandings(tournamentId);
       if (standingsContainer) {
         if (filtered.length > 0) {
-          standingsContainer.innerHTML = createStandingsTable(filtered);
+          standingsContainer.innerHTML = createStandingsTable(filtered, teamMap);
         } else {
           standingsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No standings for this tournament</h3></div>';
         }
@@ -198,4 +198,3 @@ export async function renderStandings(container) {
     });
   });
 }
-

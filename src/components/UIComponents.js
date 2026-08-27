@@ -1,42 +1,63 @@
 // ============================================
 // SHARED UI COMPONENTS
 // ============================================
-import { getTeamById, getPositionFull, formatDate, formatShortDate } from '../data/mockData.js';
+import { getTeamById as getMockTeamById, getPositionFull, formatDate, formatShortDate } from '../data/mockData.js';
+
+// Safe Team fallback helper
+function getSafeTeam(teamOrId) {
+  if (typeof teamOrId === 'object' && teamOrId !== null) return teamOrId;
+  return getMockTeamById(teamOrId) || {
+    name: teamOrId || 'Team',
+    shortName: teamOrId || 'TM',
+    gradientColor: 'linear-gradient(135deg, #4361ee, #3a0ca3)',
+    emoji: '⚽'
+  };
+}
 
 // Team Logo
-export function createTeamLogo(team, size = '') {
+export function createTeamLogo(teamInput, size = '') {
+  const team = getSafeTeam(teamInput);
   const sizeClass = size ? `team-logo-${size}` : 'team-logo';
-  return `<div class="${sizeClass}" style="background: ${team.gradientColor};">${team.emoji}</div>`;
+
+  if (team.logoUrl) {
+    return `<div class="${sizeClass}" style="overflow:hidden;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;"><img src="${team.logoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='${team.emoji || '⚽'}'" /></div>`;
+  }
+  return `<div class="${sizeClass}" style="background: ${team.gradientColor || 'linear-gradient(135deg, #4361ee, #3a0ca3)'};">${team.emoji || '⚽'}</div>`;
 }
 
 // Player Card
-export function createPlayerCard(player) {
-  const team = getTeamById(player.teamId);
-  const posClass = player.position.toLowerCase();
+export function createPlayerCard(player, optionalTeam = null) {
+  const team = optionalTeam || getSafeTeam(player.teamId);
+  const posClass = (player.position || 'fwd').toLowerCase();
+  const stats = player.stats || { goals: 0, assists: 0, appearances: 0 };
+
+  const photoHtml = player.photoUrl
+    ? `<img src="${player.photoUrl}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;" onerror="this.style.display='none'" />`
+    : `<span style="font-size:4rem;position:relative;z-index:1;">${player.avatar || '⚽'}</span>`;
 
   return `
     <div class="player-card gradient-border" onclick="window.location.hash='#/players/${player.id}'" data-player-id="${player.id}">
-      <div class="player-card-image" style="background: ${team.gradientColor};">
-        <span style="font-size:4rem;position:relative;z-index:1;">${player.avatar}</span>
-        <span class="player-card-jersey">#${player.jerseyNumber}</span>
+      <div class="player-card-image" style="background: ${team.gradientColor || 'linear-gradient(135deg, #4361ee, #3a0ca3)'}; position:relative; overflow:hidden;">
+        ${photoHtml}
+        <span class="player-card-jersey">#${player.jerseyNumber || 10}</span>
       </div>
       <div class="player-card-info">
         <div class="player-card-name">${player.name}</div>
         <div class="player-card-meta">
-          <span class="position-badge ${posClass}">${player.position}</span>
-          <span style="font-size:var(--text-sm);color:var(--text-tertiary);">${player.nationality} ${team.shortName}</span>
+          <span class="position-badge ${posClass}">${player.position || 'FWD'}</span>
+          <span style="font-size:var(--text-sm);color:var(--text-tertiary);">${player.nationality || ''} ${team.shortName || team.name}</span>
         </div>
         <div class="player-card-stats">
           <div class="player-stat-mini">
-            <div class="player-stat-mini-value">${player.stats.goals}</div>
+            <div class="player-stat-mini-value">${stats.goals || 0}</div>
             <div class="player-stat-mini-label">Goals</div>
           </div>
           <div class="player-stat-mini">
-            <div class="player-stat-mini-value">${player.stats.assists}</div>
+            <div class="player-stat-mini-value">${stats.assists || 0}</div>
             <div class="player-stat-mini-label">Assists</div>
           </div>
           <div class="player-stat-mini">
-            <div class="player-stat-mini-value">${player.stats.appearances}</div>
+            <div class="player-stat-mini-value">${stats.appearances || 0}</div>
             <div class="player-stat-mini-label">Apps</div>
           </div>
         </div>
@@ -46,15 +67,15 @@ export function createPlayerCard(player) {
 }
 
 // Match Card
-export function createMatchCard(match) {
-  const homeTeam = getTeamById(match.homeTeam);
-  const awayTeam = getTeamById(match.awayTeam);
+export function createMatchCard(match, optionalHomeTeam = null, optionalAwayTeam = null) {
+  const homeTeam = optionalHomeTeam || getSafeTeam(match.homeTeam);
+  const awayTeam = optionalAwayTeam || getSafeTeam(match.awayTeam);
   const isCompleted = match.status === 'completed';
-  const isUpcoming = match.status === 'upcoming';
+  const isLive = match.status === 'live';
 
-  const statusBadge = isCompleted
-    ? `<span class="badge badge-green">FT</span>`
-    : `<span class="badge badge-amber">Upcoming</span>`;
+  let statusBadge = `<span class="badge badge-amber">Upcoming</span>`;
+  if (isLive) statusBadge = `<span class="badge badge-red">🔴 Live</span>`;
+  if (isCompleted) statusBadge = `<span class="badge badge-green">FT</span>`;
 
   const typeBadge = match.type === 'tournament'
     ? `<span class="badge badge-purple">Tournament</span>`
@@ -72,15 +93,15 @@ export function createMatchCard(match) {
           <span class="match-team-name">${homeTeam.name}</span>
         </div>
         <div class="match-score-section">
-          ${isCompleted
+          ${isCompleted || isLive
             ? `<div class="match-score">
-                <span>${match.homeScore}</span>
+                <span>${match.homeScore ?? 0}</span>
                 <span class="match-score-divider">-</span>
-                <span>${match.awayScore}</span>
+                <span>${match.awayScore ?? 0}</span>
               </div>`
             : `<div style="font-size:var(--text-sm);color:var(--text-tertiary);">
                 <div style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary);">VS</div>
-                <div>${match.time}</div>
+                <div>${match.time || '18:00'}</div>
               </div>`
           }
         </div>
@@ -91,18 +112,18 @@ export function createMatchCard(match) {
       </div>
       <div class="match-card-footer">
         <span>📅 ${formatShortDate(match.date)}</span>
-        <span>📍 ${match.venue}</span>
+        <span>📍 ${match.venue || 'Stadium'}</span>
       </div>
     </div>
   `;
 }
 
 // Standings Table
-export function createStandingsTable(standingsData) {
+export function createStandingsTable(standingsData, teamMap = {}) {
   const rows = standingsData.map((s, i) => {
-    const team = getTeamById(s.teamId);
-    const gd = s.goalsFor - s.goalsAgainst;
-    const formDots = s.form.map(f => {
+    const team = teamMap[s.teamId] || getSafeTeam(s.teamId);
+    const gd = (s.goalsFor || 0) - (s.goalsAgainst || 0);
+    const formDots = (s.form || []).map(f => {
       const cls = f === 'W' ? 'win' : f === 'D' ? 'draw' : 'loss';
       return `<span class="form-dot ${cls}">${f}</span>`;
     }).join('');
@@ -116,14 +137,14 @@ export function createStandingsTable(standingsData) {
             <span style="font-weight:var(--weight-semibold);">${team.name}</span>
           </div>
         </td>
-        <td>${s.played}</td>
-        <td>${s.won}</td>
-        <td>${s.drawn}</td>
-        <td>${s.lost}</td>
-        <td>${s.goalsFor}</td>
-        <td>${s.goalsAgainst}</td>
+        <td>${s.played || 0}</td>
+        <td>${s.won || 0}</td>
+        <td>${s.drawn || 0}</td>
+        <td>${s.lost || 0}</td>
+        <td>${s.goalsFor || 0}</td>
+        <td>${s.goalsAgainst || 0}</td>
         <td style="color:${gd > 0 ? 'var(--accent-green)' : gd < 0 ? 'var(--accent-red)' : 'var(--text-secondary)'};">${gd > 0 ? '+' : ''}${gd}</td>
-        <td style="font-weight:var(--weight-extrabold);font-size:var(--text-lg);">${s.points}</td>
+        <td style="font-weight:var(--weight-extrabold);font-size:var(--text-lg);">${s.points || 0}</td>
         <td>
           <div style="display:flex;gap:var(--space-1);">${formDots}</div>
         </td>
