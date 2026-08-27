@@ -1,15 +1,11 @@
-// ============================================
-// ADMIN DASHBOARD PAGE
-// ============================================
-
-import { getCurrentUser } from './AdminAuth.js';
+import { waitForAuth, renderAdminAuth } from './AdminAuth.js';
 import { renderAdminHeader, attachAdminHeaderEvents } from './AdminLayout.js';
 import { getTeams, getPlayers, getMatches, getTournaments, standingsService } from '../../data/dataService.js';
 
 export async function renderAdminDashboard(container) {
-  const user = getCurrentUser();
+  const user = await waitForAuth();
   if (!user) {
-    window.location.hash = '#/admin/login';
+    await renderAdminAuth(container);
     return;
   }
 

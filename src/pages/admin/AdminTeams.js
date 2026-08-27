@@ -1,17 +1,13 @@
-// ============================================
-// ADMIN TEAMS MANAGEMENT PAGE
-// ============================================
-
-import { getCurrentUser } from './AdminAuth.js';
+import { waitForAuth, renderAdminAuth } from './AdminAuth.js';
 import { renderAdminHeader, attachAdminHeaderEvents } from './AdminLayout.js';
 import { getTeams, teamsService } from '../../data/dataService.js';
 import { createTeamLogo } from '../../components/UIComponents.js';
 import { createImagePicker } from '../../services/imageUpload.js';
 
 export async function renderAdminTeams(container) {
-  const user = getCurrentUser();
+  const user = await waitForAuth();
   if (!user) {
-    window.location.hash = '#/admin/login';
+    await renderAdminAuth(container);
     return;
   }
 

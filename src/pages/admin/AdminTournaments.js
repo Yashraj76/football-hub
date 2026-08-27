@@ -1,15 +1,11 @@
-// ============================================
-// ADMIN TOURNAMENTS & COMPETITIONS PAGE
-// ============================================
-
-import { getCurrentUser } from './AdminAuth.js';
+import { waitForAuth, renderAdminAuth } from './AdminAuth.js';
 import { renderAdminHeader, attachAdminHeaderEvents } from './AdminLayout.js';
 import { getTournaments, getTeams, tournamentsService, standingsService, formatDate } from '../../data/dataService.js';
 
 export async function renderAdminTournaments(container) {
-  const user = getCurrentUser();
+  const user = await waitForAuth();
   if (!user) {
-    window.location.hash = '#/admin/login';
+    await renderAdminAuth(container);
     return;
   }
 

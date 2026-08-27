@@ -13,11 +13,26 @@ import {
 import { auth } from '../../firebase/config.js';
 
 let currentUser = null;
+let authResolved = false;
+let authResolvers = [];
+
+export function waitForAuth() {
+  if (authResolved) return Promise.resolve(currentUser || (auth && auth.currentUser));
+  return new Promise(resolve => {
+    authResolvers.push(resolve);
+  });
+}
 
 export function initAuthListener(callback) {
-  if (!auth) return;
+  if (!auth) {
+    authResolved = true;
+    return;
+  }
   onAuthStateChanged(auth, user => {
     currentUser = user;
+    authResolved = true;
+    authResolvers.forEach(res => res(user));
+    authResolvers = [];
     if (callback) callback(user);
   });
 }
@@ -33,8 +48,9 @@ export async function adminLogout() {
   }
 }
 
-export function renderAdminAuth(container) {
-  if (currentUser) {
+export async function renderAdminAuth(container) {
+  const user = await waitForAuth();
+  if (user) {
     window.location.hash = '#/admin';
     return;
   }

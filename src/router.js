@@ -18,6 +18,8 @@ class Router {
   init() {
     window.addEventListener('hashchange', () => this.handleRoute());
     window.addEventListener('load', () => this.handleRoute());
+    // Immediately execute routing for current URL hash
+    this.handleRoute();
   }
 
   handleRoute() {
@@ -66,10 +68,7 @@ class Router {
     const container = document.getElementById('page-content');
     if (!container) return;
 
-    // Page transition
-    container.classList.add('page-exit');
-    
-    setTimeout(() => {
+    const render = () => {
       container.innerHTML = '';
       container.classList.remove('page-exit');
       container.classList.add('page-enter');
@@ -93,8 +92,16 @@ class Router {
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      setTimeout(() => container.classList.remove('page-enter'), 400);
-    }, 200);
+      setTimeout(() => container.classList.remove('page-enter'), 300);
+    };
+
+    if (this.currentRoute === null) {
+      // First page load: render immediately without exit animation delay
+      render();
+    } else {
+      container.classList.add('page-exit');
+      setTimeout(render, 150);
+    }
   }
 
   getParams() {

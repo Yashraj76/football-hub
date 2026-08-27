@@ -1,15 +1,11 @@
-// ============================================
-// ADMIN MATCH CENTER & SCORE UPDATER
-// ============================================
-
-import { getCurrentUser } from './AdminAuth.js';
+import { waitForAuth, renderAdminAuth } from './AdminAuth.js';
 import { renderAdminHeader, attachAdminHeaderEvents } from './AdminLayout.js';
 import { getMatches, getTeams, getPlayers, getTournaments, matchesService, standingsService, formatDate } from '../../data/dataService.js';
 
 export async function renderAdminMatches(container) {
-  const user = getCurrentUser();
+  const user = await waitForAuth();
   if (!user) {
-    window.location.hash = '#/admin/login';
+    await renderAdminAuth(container);
     return;
   }
 

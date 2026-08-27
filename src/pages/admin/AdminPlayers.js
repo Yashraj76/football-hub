@@ -1,16 +1,12 @@
-// ============================================
-// ADMIN PLAYERS MANAGEMENT PAGE
-// ============================================
-
-import { getCurrentUser } from './AdminAuth.js';
+import { waitForAuth, renderAdminAuth } from './AdminAuth.js';
 import { renderAdminHeader, attachAdminHeaderEvents } from './AdminLayout.js';
 import { getPlayers, getTeams, playersService, getPositionFull } from '../../data/dataService.js';
 import { createImagePicker } from '../../services/imageUpload.js';
 
 export async function renderAdminPlayers(container) {
-  const user = getCurrentUser();
+  const user = await waitForAuth();
   if (!user) {
-    window.location.hash = '#/admin/login';
+    await renderAdminAuth(container);
     return;
   }
 
