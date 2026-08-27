@@ -9,6 +9,9 @@ import './styles/components.css';
 import './styles/animations.css';
 import './styles/layout.css';
 
+// Firebase
+import { initFirebase } from './firebase/config.js';
+
 // Core
 import { router } from './router.js';
 import { themeManager } from './theme.js';
@@ -27,6 +30,9 @@ import { renderStandings } from './pages/Standings.js';
 
 // Initialize
 function init() {
+  // Initialize Firebase
+  initFirebase();
+
   // Initialize theme
   themeManager.init();
 
