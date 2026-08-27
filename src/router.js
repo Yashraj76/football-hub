@@ -21,24 +21,29 @@ class Router {
   }
 
   handleRoute() {
-    const hash = window.location.hash.slice(1) || '/';
-    const [path, ...rest] = hash.split('/').filter(Boolean);
-    const routePath = '/' + (path || '');
+    const rawHash = window.location.hash.slice(1) || '/';
+    const cleanHash = rawHash.split('?')[0]; // strip any query params
+    const fullPath = '/' + cleanHash.replace(/^\//, '');
 
-    // Check for parameterized routes
+    // Reset params
     this.params = {};
-    
-    // Try exact match first
-    if (this.routes[routePath]) {
-      if (rest.length > 0) {
-        this.params.id = rest.join('/');
-      }
-      this.navigate(routePath);
+
+    // 1. Try exact full path match first (e.g., /admin/teams, /players, /)
+    if (this.routes[fullPath]) {
+      this.navigate(fullPath);
       return;
     }
 
-    // Try with sub-path
-    const fullPath = '/' + hash.replace(/^\//, '');
+    // 2. Try prefix path with id param (e.g., /players/player-1 -> /players with params.id)
+    const [path, ...rest] = cleanHash.split('/').filter(Boolean);
+    const prefixRoute = '/' + (path || '');
+    if (this.routes[prefixRoute] && rest.length > 0) {
+      this.params.id = rest.join('/');
+      this.navigate(prefixRoute);
+      return;
+    }
+
+    // 3. Try regex pattern routes (:param)
     for (const route of Object.keys(this.routes)) {
       const pattern = route.replace(/:(\w+)/g, '([^/]+)');
       const regex = new RegExp(`^${pattern}$`);

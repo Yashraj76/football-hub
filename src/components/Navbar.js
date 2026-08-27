@@ -25,6 +25,10 @@ export function renderNavbar() {
       </div>
 
       <div class="navbar-actions">
+        <a href="#/admin" class="btn btn-ghost btn-sm" style="display: flex; align-items: center; gap: 6px; font-weight: var(--weight-semibold); border: 1px solid var(--border-primary); padding: var(--space-2) var(--space-3);">
+          <span>⚙️</span>
+          <span>Admin</span>
+        </a>
         <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
           ${themeManager.isDark() ? '☀️' : '🌙'}
         </button>
@@ -43,6 +47,7 @@ export function renderNavbar() {
       <a href="#/matches" class="nav-link" data-page="matches">📅 Matches</a>
       <a href="#/tournaments" class="nav-link" data-page="tournaments">🏆 Tournaments</a>
       <a href="#/standings" class="nav-link" data-page="standings">📊 Standings</a>
+      <a href="#/admin" class="nav-link" data-page="admin">⚙️ Admin Panel</a>
     </div>
   `;
 

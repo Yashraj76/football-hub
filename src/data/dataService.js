@@ -138,5 +138,15 @@ export async function getPlatformStats() {
   } catch { return mock.platformStats; }
 }
 
+// ── Direct Service Re-exports for Admin Operations ──────────────────────────
+export {
+  teamsService,
+  playersService,
+  matchesService,
+  tournamentsService,
+  standingsService
+};
+
 // ── Re-export sync helpers from mock (date formatting, etc.) ─────────────────
 export { formatDate, formatShortDate, getPositionFull } from './mockData.js';
+

@@ -180,4 +180,80 @@ export const standingsService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
+
+  /**
+   * Recalculate standings for a tournament based on completed matches
+   */
+  async recalculateForTournament(tournamentId) {
+    const tournament = await tournamentsService.getById(tournamentId);
+    if (!tournament || !tournament.teams) return;
+
+    const matches = await matchesService.getByTournament(tournamentId);
+    const completedMatches = matches.filter(m => m.status === 'completed');
+
+    const table = {};
+    tournament.teams.forEach(teamId => {
+      table[teamId] = {
+        tournamentId,
+        teamId,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        points: 0,
+        form: [],
+      };
+    });
+
+    completedMatches.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(m => {
+      const home = table[m.homeTeam];
+      const away = table[m.awayTeam];
+      if (!home || !away) return;
+
+      const hScore = Number(m.homeScore) || 0;
+      const aScore = Number(m.awayScore) || 0;
+
+      home.played += 1;
+      away.played += 1;
+      home.goalsFor += hScore;
+      home.goalsAgainst += aScore;
+      away.goalsFor += aScore;
+      away.goalsAgainst += hScore;
+
+      if (hScore > aScore) {
+        home.won += 1;
+        home.points += 3;
+        away.lost += 1;
+        home.form.push('W');
+        away.form.push('L');
+      } else if (hScore < aScore) {
+        away.won += 1;
+        away.points += 3;
+        home.lost += 1;
+        home.form.push('L');
+        away.form.push('W');
+      } else {
+        home.drawn += 1;
+        away.drawn += 1;
+        home.points += 1;
+        away.points += 1;
+        home.form.push('D');
+        away.form.push('D');
+      }
+    });
+
+    // Save standings to Firestore
+    await Promise.all(Object.values(table).map(entry => {
+      entry.form = entry.form.slice(-5); // keep last 5 matches form
+      return standingsService.create(entry);
+    }));
+
+    // Update matchesPlayed on tournament
+    await tournamentsService.update(tournamentId, {
+      matchesPlayed: completedMatches.length,
+    });
+  }
 };
+

@@ -28,10 +28,22 @@ import { renderMatches } from './pages/Matches.js';
 import { renderTournaments } from './pages/Tournaments.js';
 import { renderStandings } from './pages/Standings.js';
 
+// Admin Pages & Auth
+import { initAuthListener } from './pages/admin/AdminAuth.js';
+import { renderAdminAuth } from './pages/admin/AdminAuth.js';
+import { renderAdminDashboard } from './pages/admin/AdminDashboard.js';
+import { renderAdminTeams } from './pages/admin/AdminTeams.js';
+import { renderAdminPlayers } from './pages/admin/AdminPlayers.js';
+import { renderAdminMatches } from './pages/admin/AdminMatches.js';
+import { renderAdminTournaments } from './pages/admin/AdminTournaments.js';
+
 // Initialize
 function init() {
   // Initialize Firebase
   initFirebase();
+
+  // Listen to Auth State
+  initAuthListener();
 
   // Initialize theme
   themeManager.init();
@@ -59,7 +71,14 @@ function init() {
     .addRoute('/players', renderPlayers)
     .addRoute('/matches', renderMatches)
     .addRoute('/tournaments', renderTournaments)
-    .addRoute('/standings', renderStandings);
+    .addRoute('/standings', renderStandings)
+    // Admin routes
+    .addRoute('/admin', renderAdminDashboard)
+    .addRoute('/admin/login', renderAdminAuth)
+    .addRoute('/admin/teams', renderAdminTeams)
+    .addRoute('/admin/players', renderAdminPlayers)
+    .addRoute('/admin/matches', renderAdminMatches)
+    .addRoute('/admin/tournaments', renderAdminTournaments);
 
   // Initialize router
   router.init();
