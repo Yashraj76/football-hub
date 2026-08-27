@@ -1,13 +1,13 @@
 // ============================================
 // PLAYERS PAGE
 // ============================================
-import { players, getTeamById, getPlayerById, getMatchesByTeam, getPositionFull } from '../data/mockData.js';
+import { getPlayers, getTeams, getTeamById, getPlayerById, getPositionFull } from '../data/dataService.js';
 import { createPlayerCard, createTeamLogo, createSectionHeader, animateCounters } from '../components/UIComponents.js';
 
-export function renderPlayers(container, params) {
+export async function renderPlayers(container, params) {
   // If viewing a specific player
   if (params && params.id) {
-    renderPlayerDetail(container, params.id);
+    await renderPlayerDetail(container, params.id);
     return;
   }
 
@@ -46,10 +46,15 @@ export function renderPlayers(container, params) {
           <button class="chip" data-sort="name">🔤 Name</button>
         </div>
 
-        <!-- Players Grid -->
-        <div class="grid-3 stagger-children" id="players-grid">
-          ${getSortedPlayers(players, 'goals').map(p => createPlayerCard(p)).join('')}
+        <div style="min-height: 200px; display: flex; align-items: center; justify-content: center;" id="players-loading">
+          <div class="empty-state">
+            <div class="empty-state-icon">⚽</div>
+            <h3>Loading players...</h3>
+          </div>
         </div>
+
+        <!-- Players Grid -->
+        <div class="grid-3 stagger-children" id="players-grid" style="display:none;"></div>
 
         <div id="no-results" style="display:none;" class="empty-state">
           <div class="empty-state-icon">🔍</div>
@@ -59,6 +64,18 @@ export function renderPlayers(container, params) {
       </div>
     </section>
   `;
+
+  const [players, teams] = await Promise.all([getPlayers(), getTeams()]);
+  const teamMap = Object.fromEntries(teams.map(t => [t.id, t]));
+
+  const loading = container.querySelector('#players-loading');
+  const grid = container.querySelector('#players-grid');
+  const noResults = container.querySelector('#no-results');
+  if (loading) loading.style.display = 'none';
+  if (grid) {
+    grid.style.display = 'grid';
+    grid.innerHTML = getSortedPlayers(players, 'goals').map(p => createPlayerCard(p)).join('');
+  }
 
   // Search & Filter Logic
   const searchInput = container.querySelector('#player-search');
@@ -79,23 +96,21 @@ export function renderPlayers(container, params) {
     // Search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        getTeamById(p.teamId).name.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(p => {
+        const team = teamMap[p.teamId] || {};
+        return p.name.toLowerCase().includes(query) ||
+          (team.name && team.name.toLowerCase().includes(query));
+      });
     }
 
     // Sort
     filtered = getSortedPlayers(filtered, currentSort);
 
-    const grid = container.querySelector('#players-grid');
-    const noResults = container.querySelector('#no-results');
-
     if (filtered.length === 0) {
       grid.style.display = 'none';
       noResults.style.display = 'flex';
     } else {
-      grid.style.display = '';
+      grid.style.display = 'grid';
       noResults.style.display = 'none';
       grid.innerHTML = filtered.map(p => createPlayerCard(p)).join('');
     }
@@ -128,34 +143,48 @@ export function renderPlayers(container, params) {
 function getSortedPlayers(playerList, sort) {
   return [...playerList].sort((a, b) => {
     switch (sort) {
-      case 'goals': return b.stats.goals - a.stats.goals;
-      case 'assists': return b.stats.assists - a.stats.assists;
-      case 'appearances': return b.stats.appearances - a.stats.appearances;
-      case 'name': return a.name.localeCompare(b.name);
+      case 'goals': return ((b.stats && b.stats.goals) || 0) - ((a.stats && a.stats.goals) || 0);
+      case 'assists': return ((b.stats && b.stats.assists) || 0) - ((a.stats && a.stats.assists) || 0);
+      case 'appearances': return ((b.stats && b.stats.appearances) || 0) - ((a.stats && a.stats.appearances) || 0);
+      case 'name': return (a.name || '').localeCompare(b.name || '');
       default: return 0;
     }
   });
 }
 
-function renderPlayerDetail(container, playerId) {
-  const player = getPlayerById(playerId);
+async function renderPlayerDetail(container, playerId) {
+  container.innerHTML = `
+    <div style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+      <div class="empty-state">
+        <div class="empty-state-icon">⚽</div>
+        <h3>Loading player profile...</h3>
+      </div>
+    </div>
+  `;
+
+  const [player, allPlayers] = await Promise.all([
+    getPlayerById(playerId),
+    getPlayers()
+  ]);
+
   if (!player) {
     container.innerHTML = `<div class="container section"><div class="empty-state"><div class="empty-state-icon">🔍</div><h3>Player not found</h3></div></div>`;
     return;
   }
 
-  const team = getTeamById(player.teamId);
-  const posClass = player.position.toLowerCase();
-  const goalsPerGame = player.stats.appearances > 0 ? (player.stats.goals / player.stats.appearances).toFixed(2) : '0.00';
-  const minsPerGoal = player.stats.goals > 0 ? Math.round(player.stats.minutesPlayed / player.stats.goals) : '—';
+  const team = (await getTeamById(player.teamId)) || { name: 'Team', gradientColor: 'linear-gradient(135deg, #333, #666)', emoji: '⚽' };
+  const posClass = (player.position || 'fwd').toLowerCase();
+  const stats = player.stats || { goals: 0, assists: 0, appearances: 0, cleanSheets: 0, yellowCards: 0, redCards: 0, minutesPlayed: 0 };
+  const goalsPerGame = stats.appearances > 0 ? (stats.goals / stats.appearances).toFixed(2) : '0.00';
+  const minsPerGoal = stats.goals > 0 ? Math.round(stats.minutesPlayed / stats.goals) : '—';
 
   // Goal contribution
-  const totalContributions = player.stats.goals + player.stats.assists;
+  const totalContributions = stats.goals + stats.assists;
 
   // Stat bars - relative to max
-  const maxGoals = Math.max(...players.map(p => p.stats.goals));
-  const maxAssists = Math.max(...players.map(p => p.stats.assists));
-  const maxApps = Math.max(...players.map(p => p.stats.appearances));
+  const maxGoals = Math.max(...allPlayers.map(p => (p.stats && p.stats.goals) || 0), 1);
+  const maxAssists = Math.max(...allPlayers.map(p => (p.stats && p.stats.assists) || 0), 1);
+  const maxApps = Math.max(...allPlayers.map(p => (p.stats && p.stats.appearances) || 0), 1);
 
   container.innerHTML = `
     <div class="page-header" style="padding-bottom: var(--space-16);">
@@ -163,22 +192,22 @@ function renderPlayerDetail(container, playerId) {
         <a href="#/players" class="btn btn-ghost animate-fade-in-up" style="margin-bottom:var(--space-4);">← Back to Players</a>
         <div style="display:flex;align-items:center;gap:var(--space-8);flex-wrap:wrap;" class="animate-fade-in-up">
           <div style="width:140px;height:140px;border-radius:var(--radius-2xl);background:${team.gradientColor};display:flex;align-items:center;justify-content:center;font-size:4rem;position:relative;flex-shrink:0;">
-            ${player.avatar}
-            <span style="position:absolute;bottom:-4px;right:-4px;width:40px;height:40px;border-radius:var(--radius-lg);background:var(--bg-primary);border:2px solid var(--border-primary);display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);font-weight:var(--weight-bold);">#${player.jerseyNumber}</span>
+            ${player.avatar || '⚽'}
+            <span style="position:absolute;bottom:-4px;right:-4px;width:40px;height:40px;border-radius:var(--radius-lg);background:var(--bg-primary);border:2px solid var(--border-primary);display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);font-weight:var(--weight-bold);">#${player.jerseyNumber || 10}</span>
           </div>
           <div>
             <h1 class="page-title">${player.name}</h1>
             <div style="display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-2);flex-wrap:wrap;">
               <span class="position-badge ${posClass}" style="font-size:var(--text-sm);padding:var(--space-2) var(--space-4);">${getPositionFull(player.position)}</span>
-              <span style="font-size:var(--text-lg);">${player.nationality}</span>
+              <span style="font-size:var(--text-lg);">${player.nationality || ''}</span>
               <span style="display:flex;align-items:center;gap:var(--space-2);">
                 ${createTeamLogo(team, 'sm')}
                 <span style="font-weight:var(--weight-semibold);">${team.name}</span>
               </span>
             </div>
-            <p style="margin-top:var(--space-3);color:var(--text-secondary);max-width:500px;">${player.bio}</p>
+            <p style="margin-top:var(--space-3);color:var(--text-secondary);max-width:500px;">${player.bio || ''}</p>
             <div style="display:flex;gap:var(--space-3);margin-top:var(--space-3);flex-wrap:wrap;">
-              <span class="badge badge-blue">🦶 ${player.preferredFoot} foot</span>
+              <span class="badge badge-blue">🦶 ${player.preferredFoot || 'Right'} foot</span>
             </div>
           </div>
         </div>
@@ -191,15 +220,15 @@ function renderPlayerDetail(container, playerId) {
         <!-- Key Stats Grid -->
         <div class="grid-4 stagger-children" style="margin-bottom:var(--space-12);">
           <div class="card" style="text-align:center;">
-            <div class="stat-value" data-count="${player.stats.goals}">0</div>
+            <div class="stat-value" data-count="${stats.goals}">0</div>
             <div class="stat-label">Goals</div>
           </div>
           <div class="card" style="text-align:center;">
-            <div class="stat-value" data-count="${player.stats.assists}">0</div>
+            <div class="stat-value" data-count="${stats.assists}">0</div>
             <div class="stat-label">Assists</div>
           </div>
           <div class="card" style="text-align:center;">
-            <div class="stat-value" data-count="${player.stats.appearances}">0</div>
+            <div class="stat-value" data-count="${stats.appearances}">0</div>
             <div class="stat-label">Appearances</div>
           </div>
           <div class="card" style="text-align:center;">
@@ -213,9 +242,9 @@ function renderPlayerDetail(container, playerId) {
           <div class="card">
             <h3 style="margin-bottom:var(--space-6);">Performance Stats</h3>
             <div style="display:flex;flex-direction:column;gap:var(--space-5);">
-              ${createStatBar('Goals', player.stats.goals, maxGoals)}
-              ${createStatBar('Assists', player.stats.assists, maxAssists)}
-              ${createStatBar('Appearances', player.stats.appearances, maxApps)}
+              ${createStatBar('Goals', stats.goals, maxGoals)}
+              ${createStatBar('Assists', stats.assists, maxAssists)}
+              ${createStatBar('Appearances', stats.appearances, maxApps)}
               <div style="display:flex;justify-content:space-between;padding:var(--space-2) 0;">
                 <span style="color:var(--text-secondary);">Goals / Game</span>
                 <span style="font-weight:var(--weight-bold);">${goalsPerGame}</span>
@@ -226,7 +255,7 @@ function renderPlayerDetail(container, playerId) {
               </div>
               <div style="display:flex;justify-content:space-between;padding:var(--space-2) 0;">
                 <span style="color:var(--text-secondary);">Minutes Played</span>
-                <span style="font-weight:var(--weight-bold);">${player.stats.minutesPlayed.toLocaleString()}'</span>
+                <span style="font-weight:var(--weight-bold);">${(stats.minutesPlayed || 0).toLocaleString()}'</span>
               </div>
             </div>
           </div>
@@ -236,16 +265,16 @@ function renderPlayerDetail(container, playerId) {
             <div style="display:flex;flex-direction:column;gap:var(--space-5);">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3);background:rgba(255,184,0,0.08);border-radius:var(--radius-lg);">
                 <span style="display:flex;align-items:center;gap:var(--space-2);">🟨 Yellow Cards</span>
-                <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-amber);">${player.stats.yellowCards}</span>
+                <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-amber);">${stats.yellowCards}</span>
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3);background:rgba(255,71,87,0.08);border-radius:var(--radius-lg);">
                 <span style="display:flex;align-items:center;gap:var(--space-2);">🟥 Red Cards</span>
-                <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-red);">${player.stats.redCards}</span>
+                <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-red);">${stats.redCards}</span>
               </div>
               ${player.position === 'GK' || player.position === 'DEF' ? `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3);background:rgba(var(--accent-green-rgb),0.08);border-radius:var(--radius-lg);">
                   <span style="display:flex;align-items:center;gap:var(--space-2);">🧤 Clean Sheets</span>
-                  <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-green);">${player.stats.cleanSheets}</span>
+                  <span style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--accent-green);">${stats.cleanSheets}</span>
                 </div>
               ` : ''}
             </div>
@@ -259,11 +288,11 @@ function renderPlayerDetail(container, playerId) {
               </div>
               <div style="display:flex;justify-content:space-between;">
                 <span style="color:var(--text-tertiary);">Jersey</span>
-                <span style="font-weight:var(--weight-semibold);">#${player.jerseyNumber}</span>
+                <span style="font-weight:var(--weight-semibold);">#${player.jerseyNumber || 10}</span>
               </div>
               <div style="display:flex;justify-content:space-between;">
                 <span style="color:var(--text-tertiary);">Preferred Foot</span>
-                <span style="font-weight:var(--weight-semibold);">${player.preferredFoot}</span>
+                <span style="font-weight:var(--weight-semibold);">${player.preferredFoot || 'Right'}</span>
               </div>
               <div style="display:flex;justify-content:space-between;">
                 <span style="color:var(--text-tertiary);">Team</span>

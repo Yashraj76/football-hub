@@ -1,13 +1,10 @@
 // ============================================
 // MATCHES PAGE
 // ============================================
-import { matches, getTeamById, getPlayerById, formatDate } from '../data/mockData.js';
+import { getMatches, getPlayers, getTeams, getTeamById, getPlayerById, formatDate } from '../data/dataService.js';
 import { createMatchCard, createTeamLogo } from '../components/UIComponents.js';
 
-export function renderMatches(container) {
-  const completed = matches.filter(m => m.status === 'completed').sort((a, b) => new Date(b.date) - new Date(a.date));
-  const upcoming = matches.filter(m => m.status === 'upcoming').sort((a, b) => new Date(a.date) - new Date(b.date));
-
+export async function renderMatches(container) {
   container.innerHTML = `
     <div class="page-header">
       <div class="container page-header-content">
@@ -20,22 +17,53 @@ export function renderMatches(container) {
 
     <section class="section">
       <div class="container">
-        <!-- Tabs -->
-        <div class="tabs animate-fade-in-up" style="margin-bottom:var(--space-8);" id="match-tabs">
-          <button class="tab active" data-tab="all">All (${matches.length})</button>
-          <button class="tab" data-tab="results">Results (${completed.length})</button>
-          <button class="tab" data-tab="upcoming">Upcoming (${upcoming.length})</button>
-          <button class="tab" data-tab="friendly">Friendlies</button>
-          <button class="tab" data-tab="tournament">Tournament</button>
+        <div style="min-height: 200px; display: flex; align-items: center; justify-content: center;" id="matches-loading">
+          <div class="empty-state">
+            <div class="empty-state-icon">⚽</div>
+            <h3>Loading fixtures & results...</h3>
+          </div>
         </div>
 
-        <!-- Match List -->
-        <div class="grid-auto stagger-children" id="matches-grid">
-          ${matches.sort((a, b) => new Date(b.date) - new Date(a.date)).map(m => createMatchCardExpanded(m)).join('')}
+        <div id="matches-content" style="display:none;">
+          <!-- Tabs -->
+          <div class="tabs animate-fade-in-up" style="margin-bottom:var(--space-8);" id="match-tabs">
+            <button class="tab active" data-tab="all">All (<span id="count-all">0</span>)</button>
+            <button class="tab" data-tab="results">Results (<span id="count-results">0</span>)</button>
+            <button class="tab" data-tab="upcoming">Upcoming (<span id="count-upcoming">0</span>)</button>
+            <button class="tab" data-tab="friendly">Friendlies</button>
+            <button class="tab" data-tab="tournament">Tournament</button>
+          </div>
+
+          <!-- Match List -->
+          <div class="grid-auto stagger-children" id="matches-grid"></div>
         </div>
       </div>
     </section>
   `;
+
+  const [matches, players, teams] = await Promise.all([getMatches(), getPlayers(), getTeams()]);
+  const teamMap = Object.fromEntries(teams.map(t => [t.id, t]));
+  const playerMap = Object.fromEntries(players.map(p => [p.id, p]));
+
+  const completed = matches.filter(m => m.status === 'completed').sort((a, b) => new Date(b.date) - new Date(a.date));
+  const upcoming = matches.filter(m => m.status === 'upcoming').sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const loading = container.querySelector('#matches-loading');
+  const content = container.querySelector('#matches-content');
+  if (loading) loading.style.display = 'none';
+  if (content) content.style.display = 'block';
+
+  const countAll = container.querySelector('#count-all');
+  const countResults = container.querySelector('#count-results');
+  const countUpcoming = container.querySelector('#count-upcoming');
+  if (countAll) countAll.textContent = matches.length;
+  if (countResults) countResults.textContent = completed.length;
+  if (countUpcoming) countUpcoming.textContent = upcoming.length;
+
+  const grid = container.querySelector('#matches-grid');
+  if (grid) {
+    grid.innerHTML = matches.sort((a, b) => new Date(b.date) - new Date(a.date)).map(m => createMatchCardExpanded(m, teamMap, playerMap)).join('');
+  }
 
   // Tab switching
   const tabs = container.querySelectorAll('.tab');
@@ -64,15 +92,16 @@ export function renderMatches(container) {
           filtered = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date));
       }
 
-      const grid = container.querySelector('#matches-grid');
-      grid.innerHTML = filtered.map(m => createMatchCardExpanded(m)).join('');
+      if (grid) {
+        grid.innerHTML = filtered.map(m => createMatchCardExpanded(m, teamMap, playerMap)).join('');
+      }
     });
   });
 }
 
-function createMatchCardExpanded(match) {
-  const homeTeam = getTeamById(match.homeTeam);
-  const awayTeam = getTeamById(match.awayTeam);
+function createMatchCardExpanded(match, teamMap = {}, playerMap = {}) {
+  const homeTeam = teamMap[match.homeTeam] || getTeamById(match.homeTeam) || { name: 'Home Team', emoji: '⚽', gradientColor: 'linear-gradient(135deg, #333, #666)' };
+  const awayTeam = teamMap[match.awayTeam] || getTeamById(match.awayTeam) || { name: 'Away Team', emoji: '⚽', gradientColor: 'linear-gradient(135deg, #333, #666)' };
   const isCompleted = match.status === 'completed';
 
   const statusBadge = isCompleted
@@ -88,21 +117,21 @@ function createMatchCardExpanded(match) {
   if (isCompleted && match.scorers && match.scorers.length > 0) {
     const homeScorers = match.scorers
       .filter(s => {
-        const player = getPlayerById(s.playerId);
+        const player = playerMap[s.playerId] || getPlayerById(s.playerId);
         return player && player.teamId === match.homeTeam;
       })
       .map(s => {
-        const player = getPlayerById(s.playerId);
+        const player = playerMap[s.playerId] || getPlayerById(s.playerId);
         return `${player.name} ${s.minute}'`;
       });
 
     const awayScorers = match.scorers
       .filter(s => {
-        const player = getPlayerById(s.playerId);
+        const player = playerMap[s.playerId] || getPlayerById(s.playerId);
         return player && player.teamId === match.awayTeam;
       })
       .map(s => {
-        const player = getPlayerById(s.playerId);
+        const player = playerMap[s.playerId] || getPlayerById(s.playerId);
         return `${player.name} ${s.minute}'`;
       });
 
@@ -138,7 +167,7 @@ function createMatchCardExpanded(match) {
               </div>`
             : `<div style="text-align:center;">
                 <div style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);font-family:var(--font-heading);">VS</div>
-                <div style="font-size:var(--text-sm);color:var(--accent-amber);font-weight:var(--weight-semibold);">${match.time}</div>
+                <div style="font-size:var(--text-sm);color:var(--accent-amber);font-weight:var(--weight-semibold);">${match.time || '18:00'}</div>
               </div>`
           }
         </div>
@@ -150,8 +179,9 @@ function createMatchCardExpanded(match) {
       ${scorersList}
       <div class="match-card-footer">
         <span>📅 ${formatDate(match.date)}</span>
-        <span>📍 ${match.venue}</span>
+        <span>📍 ${match.venue || 'Stadium'}</span>
       </div>
     </div>
   `;
 }
+

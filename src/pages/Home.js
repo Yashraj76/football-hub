@@ -1,10 +1,29 @@
 // ============================================
 // HOME PAGE
 // ============================================
-import { teams, players, matches, getTopScorers, getRecentMatches, getUpcomingMatches, platformStats, standings, getTeamById } from '../data/mockData.js';
+import { getTeams, getTopScorers, getRecentMatches, getUpcomingMatches, getPlatformStats, getStandings } from '../data/dataService.js';
 import { createMatchCard, createPlayerCard, createStandingsTable, createTeamLogo, createSectionHeader, animateCounters } from '../components/UIComponents.js';
 
-export function renderHome(container) {
+export async function renderHome(container) {
+  // Show loading skeleton / shell initially if empty
+  container.innerHTML = `
+    <div style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+      <div class="empty-state animate-fade-in-up">
+        <div class="empty-state-icon">⚽</div>
+        <h3>Loading FootballHub...</h3>
+      </div>
+    </div>
+  `;
+
+  const [platformStats, recentMatches, upcomingMatches, topScorers, standings, teams] = await Promise.all([
+    getPlatformStats(),
+    getRecentMatches(3),
+    getUpcomingMatches(3),
+    getTopScorers(6),
+    getStandings('tournament-1'),
+    getTeams()
+  ]);
+
   container.innerHTML = `
     <!-- Hero Section -->
     <section class="hero">
@@ -60,7 +79,7 @@ export function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Latest Results', 'See how the recent matches unfolded', 'All Matches', '#/matches')}
         <div class="grid-auto stagger-children">
-          ${getRecentMatches(3).map(m => createMatchCard(m)).join('')}
+          ${recentMatches.map(m => createMatchCard(m)).join('')}
         </div>
       </div>
     </section>
@@ -70,7 +89,7 @@ export function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Upcoming Fixtures', "Don't miss the action", 'Full Schedule', '#/matches')}
         <div class="grid-auto stagger-children">
-          ${getUpcomingMatches(3).map(m => createMatchCard(m)).join('')}
+          ${upcomingMatches.map(m => createMatchCard(m)).join('')}
         </div>
       </div>
     </section>
@@ -80,7 +99,7 @@ export function renderHome(container) {
       <div class="container">
         ${createSectionHeader('Top Scorers', 'The sharpest shooters in the league', 'All Players', '#/players')}
         <div class="grid-auto stagger-children">
-          ${getTopScorers(6).map(p => createPlayerCard(p)).join('')}
+          ${topScorers.map(p => createPlayerCard(p)).join('')}
         </div>
       </div>
     </section>

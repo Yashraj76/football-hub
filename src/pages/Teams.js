@@ -1,13 +1,13 @@
 // ============================================
 // TEAMS PAGE
 // ============================================
-import { teams, getPlayersByTeam, getTeamById } from '../data/mockData.js';
+import { getTeams, getTeamById, getPlayersByTeam } from '../data/dataService.js';
 import { createTeamCard, createTeamLogo, createPlayerCard, createSectionHeader } from '../components/UIComponents.js';
 
-export function renderTeams(container, params) {
+export async function renderTeams(container, params) {
   // If viewing a specific team
   if (params && params.id) {
-    renderTeamDetail(container, params.id);
+    await renderTeamDetail(container, params.id);
     return;
   }
 
@@ -22,24 +22,49 @@ export function renderTeams(container, params) {
     </div>
     <section class="section">
       <div class="container">
-        <div class="grid-3 stagger-children" id="teams-grid">
-          ${teams.map(t => createTeamCard(t)).join('')}
+        <div style="min-height: 200px; display: flex; align-items: center; justify-content: center;" id="teams-loading">
+          <div class="empty-state">
+            <div class="empty-state-icon">🛡️</div>
+            <h3>Loading teams...</h3>
+          </div>
         </div>
+        <div class="grid-3 stagger-children" id="teams-grid" style="display:none;"></div>
       </div>
     </section>
   `;
+
+  const teams = await getTeams();
+  const loading = container.querySelector('#teams-loading');
+  const grid = container.querySelector('#teams-grid');
+
+  if (loading) loading.style.display = 'none';
+  if (grid) {
+    grid.style.display = 'grid';
+    grid.innerHTML = teams.map(t => createTeamCard(t)).join('');
+  }
 }
 
-function renderTeamDetail(container, teamId) {
-  const team = getTeamById(teamId);
+async function renderTeamDetail(container, teamId) {
+  container.innerHTML = `
+    <div style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🛡️</div>
+        <h3>Loading team details...</h3>
+      </div>
+    </div>
+  `;
+
+  const [team, teamPlayers] = await Promise.all([
+    getTeamById(teamId),
+    getPlayersByTeam(teamId)
+  ]);
+
   if (!team) {
     container.innerHTML = `<div class="container section"><div class="empty-state"><div class="empty-state-icon">🔍</div><h3>Team not found</h3></div></div>`;
     return;
   }
 
-  const teamPlayers = getPlayersByTeam(teamId);
-  const totalGoals = teamPlayers.reduce((sum, p) => sum + p.stats.goals, 0);
-  const totalAssists = teamPlayers.reduce((sum, p) => sum + p.stats.assists, 0);
+  const totalGoals = teamPlayers.reduce((sum, p) => sum + ((p.stats && p.stats.goals) || 0), 0);
 
   container.innerHTML = `
     <div class="page-header" style="padding-bottom: var(--space-16);">
@@ -49,11 +74,11 @@ function renderTeamDetail(container, teamId) {
           ${createTeamLogo(team, 'xl')}
           <div>
             <h1 class="page-title">${team.name}</h1>
-            <p class="page-description">${team.description}</p>
+            <p class="page-description">${team.description || ''}</p>
             <div style="display:flex;gap:var(--space-4);margin-top:var(--space-3);flex-wrap:wrap;">
-              <span class="badge badge-green">📍 ${team.homeGround}</span>
-              <span class="badge badge-blue">📅 Est. ${team.founded}</span>
-              <span class="badge badge-amber">👔 ${team.manager}</span>
+              <span class="badge badge-green">📍 ${team.homeGround || 'Home Ground'}</span>
+              <span class="badge badge-blue">📅 Est. ${team.founded || '2020'}</span>
+              <span class="badge badge-amber">👔 ${team.manager || 'Manager'}</span>
             </div>
           </div>
         </div>
@@ -65,15 +90,15 @@ function renderTeamDetail(container, teamId) {
       <div class="container">
         <div class="grid-4 stagger-children" style="margin-bottom:var(--space-12);">
           <div class="card" style="text-align:center;">
-            <div class="stat-value">${team.wins}</div>
+            <div class="stat-value">${team.wins || 0}</div>
             <div class="stat-label">Wins</div>
           </div>
           <div class="card" style="text-align:center;">
-            <div class="stat-value">${team.draws}</div>
+            <div class="stat-value">${team.draws || 0}</div>
             <div class="stat-label">Draws</div>
           </div>
           <div class="card" style="text-align:center;">
-            <div class="stat-value">${team.losses}</div>
+            <div class="stat-value">${team.losses || 0}</div>
             <div class="stat-label">Losses</div>
           </div>
           <div class="card" style="text-align:center;">
@@ -90,3 +115,4 @@ function renderTeamDetail(container, teamId) {
     </section>
   `;
 }
+
